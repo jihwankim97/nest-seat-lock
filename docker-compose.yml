@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: nest-seat-lock-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ticketing
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - seat-lock-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: nest-seat-lock-redis
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - seat-lock-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  seat-lock-network:
+    driver: bridge
