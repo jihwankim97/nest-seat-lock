@@ -13,7 +13,10 @@ import { SeatModule } from './modules/seat/seat.module';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'ticketing',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV !== 'production', // 개발 환경에서만 자동 동기화
+      // WARNING: synchronize should only be enabled in development
+      // In production, use migrations to manage schema changes
+      // Ensure NODE_ENV is properly set to prevent accidental schema sync
+      synchronize: process.env.NODE_ENV !== 'production',
       logging: process.env.NODE_ENV === 'development',
     }),
     RedisModule,

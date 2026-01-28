@@ -271,4 +271,98 @@ describe('SeatService', () => {
       });
     });
   });
+
+  describe('cleanupExpiredReservations', () => {
+    it('should cleanup expired reservations', async () => {
+      const expiredReservations = [
+        {
+          id: 1,
+          userId: 'user1',
+          seatId: 1,
+          status: ReservationStatus.CONFIRMED,
+          expiresAt: new Date('2020-01-01'),
+          seat: { id: 1, seatNumber: 'A1', status: SeatStatus.RESERVED },
+        },
+        {
+          id: 2,
+          userId: 'user2',
+          seatId: 2,
+          status: ReservationStatus.CONFIRMED,
+          expiresAt: new Date('2020-01-01'),
+          seat: { id: 2, seatNumber: 'A2', status: SeatStatus.RESERVED },
+        },
+      ];
+
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(expiredReservations),
+      };
+
+      mockReservationRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      mockLockService.executeWithLock.mockImplementation(async (key, callback) => {
+        return await callback();
+      });
+
+      mockReservationRepository.save.mockImplementation((reservation) =>
+        Promise.resolve(reservation),
+      );
+      mockSeatRepository.save.mockImplementation((seat) => Promise.resolve(seat));
+
+      const count = await service.cleanupExpiredReservations();
+
+      expect(count).toBe(2);
+      expect(mockLockService.executeWithLock).toHaveBeenCalledTimes(2);
+      expect(mockReservationRepository.save).toHaveBeenCalledTimes(2);
+      expect(mockSeatRepository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return 0 when no expired reservations', async () => {
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+
+      mockReservationRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      const count = await service.cleanupExpiredReservations();
+
+      expect(count).toBe(0);
+      expect(mockLockService.executeWithLock).not.toHaveBeenCalled();
+    });
+
+    it('should handle lock acquisition failure gracefully', async () => {
+      const expiredReservations = [
+        {
+          id: 1,
+          userId: 'user1',
+          seatId: 1,
+          status: ReservationStatus.CONFIRMED,
+          expiresAt: new Date('2020-01-01'),
+          seat: { id: 1, seatNumber: 'A1', status: SeatStatus.RESERVED },
+        },
+      ];
+
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(expiredReservations),
+      };
+
+      mockReservationRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      mockLockService.executeWithLock.mockRejectedValue(
+        new Error('Failed to acquire lock'),
+      );
+
+      await expect(service.cleanupExpiredReservations()).rejects.toThrow(
+        'Failed to acquire lock',
+      );
+    });
+  });
 });
