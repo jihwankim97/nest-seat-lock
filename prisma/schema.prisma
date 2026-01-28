@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Performance {
+  id         Int      @id @default(autoincrement())
+  title      String
+  date       DateTime
+  venue      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  seats Seat[]
+
+  @@index([date])
+  @@map("performances")
+}
+
+model Seat {
+  id            Int       @id @default(autoincrement())
+  performanceId Int
+  seatNumber    String
+  status        SeatStatus @default(AVAILABLE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  performance Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  locks       SeatLock[]
+
+  @@unique([performanceId, seatNumber])
+  @@index([performanceId, status])
+  @@index([performanceId, seatNumber])
+  @@map("seats")
+}
+
+model SeatLock {
+  id            Int      @id @default(autoincrement())
+  seatId        Int
+  userId        String
+  lockedAt      DateTime @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  seat Seat @relation(fields: [seatId], references: [id], onDelete: Cascade)
+
+  @@index([seatId])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("seat_locks")
+}
+
+enum SeatStatus {
+  AVAILABLE
+  LOCKED
+  SOLD
+}
+
